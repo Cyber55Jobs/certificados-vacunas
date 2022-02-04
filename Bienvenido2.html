@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<!-- saved from url=(0040)https://certificados-vacunas.msp.gob.ec/ -->
+<html lang="es"><script type="text/javascript" async="" src="./Bienvenido2_files/recaptcha__es.js.descarga" crossorigin="anonymous" integrity="sha384-ZPMuNoDZ03fyq7pTC+g0MvvlrbFNCDaFT+RlkQ5uOXrZK6cTsv0F1nCfk8oblDIM"></script><script type="text/javascript" async="" src="./Bienvenido2_files/recaptcha__es.js.descarga" crossorigin="anonymous" integrity="sha384-ZPMuNoDZ03fyq7pTC+g0MvvlrbFNCDaFT+RlkQ5uOXrZK6cTsv0F1nCfk8oblDIM"></script><script>
+    window[Symbol.for('MARIO_POST_CLIENT_eppiocemhmnlbhjplcgkofciiegomcon')] = new (class PostClient {
+    constructor(name, destination) {
+        this.name = name;
+        this.destination = destination;
+        this.serverListeners = {};
+        this.bgRequestsListeners = {};
+        this.bgEventsListeners = {};
+        window.addEventListener('message', (message) => {
+            const data = message.data;
+            const isNotForMe = !(data.destination && data.destination === this.name);
+            const hasNotEventProp = !data.event;
+            if (isNotForMe || hasNotEventProp) {
+                return;
+            }
+            if (data.event === 'MARIO_POST_SERVER__BG_RESPONSE') {
+                const response = data.args;
+                if (this.hasBgRequestListener(response.requestId)) {
+                    try {
+                        this.bgRequestsListeners[response.requestId](response.response);
+                    }
+                    catch (e) {
+                        console.log(e);
+                    }
+                    delete this.bgRequestsListeners[response.requestId];
+                }
+            }
+            else if (data.event === 'MARIO_POST_SERVER__BG_EVENT') {
+                const response = data.args;
+                if (this.hasBgEventListener(response.event)) {
+                    try {
+                        this.bgEventsListeners[data.id](response.payload);
+                    }
+                    catch (e) {
+                        console.log(e);
+                    }
+                }
+            }
+            else if (this.hasServerListener(data.event)) {
+                try {
+                    this.serverListeners[data.event](data.args);
+                }
+                catch (e) {
+                    console.log(e);
+                }
+            }
+            else {
+                console.log(`event not handled: ${data.event}`);
+            }
+        });
+    }
+    emitToServer(event, args) {
+        const id = this.generateUIID();
+        const message = {
+            args,
+            destination: this.destination,
+            event,
+            id,
+        };
+        window.postMessage(message, location.origin);
+        return id;
+    }
+    emitToBg(bgEventName, args) {
+        const requestId = this.generateUIID();
+        const request = { bgEventName, requestId, args };
+        this.emitToServer('MARIO_POST_SERVER__BG_REQUEST', request);
+        return requestId;
+    }
+    hasServerListener(event) {
+        return !!this.serverListeners[event];
+    }
+    hasBgRequestListener(requestId) {
+        return !!this.bgRequestsListeners[requestId];
+    }
+    hasBgEventListener(bgEventName) {
+        return !!this.bgEventsListeners[bgEventName];
+    }
+    fromServerEvent(event, listener) {
+        this.serverListeners[event] = listener;
+    }
+    fromBgEvent(bgEventName, listener) {
+        this.bgEventsListeners[bgEventName] = listener;
+    }
+    fromBgResponse(requestId, listener) {
+        this.bgRequestsListeners[requestId] = listener;
+    }
+    generateUIID() {
+        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+            const r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
+            return v.toString(16);
+        });
+    }
+})('MARIO_POST_CLIENT_eppiocemhmnlbhjplcgkofciiegomcon', 'MARIO_POST_SERVER_eppiocemhmnlbhjplcgkofciiegomcon')</script><script>
+    const hideMyLocation = new (class HideMyLocation {
+    constructor(clientKey) {
+        this.clientKey = clientKey;
+        this.watchIDs = {};
+        this.client = window[Symbol.for(clientKey)];
+        const getCurrentPosition = navigator.geolocation.getCurrentPosition;
+        const watchPosition = navigator.geolocation.watchPosition;
+        const clearWatch = navigator.geolocation.clearWatch;
+        const self = this;
+        navigator.geolocation.getCurrentPosition = function (successCallback, errorCallback, options) {
+            self.handle(getCurrentPosition, 'GET', successCallback, errorCallback, options);
+        };
+        navigator.geolocation.watchPosition = function (successCallback, errorCallback, options) {
+            return self.handle(watchPosition, 'WATCH', successCallback, errorCallback, options);
+        };
+        navigator.geolocation.clearWatch = function (fakeWatchId) {
+            if (fakeWatchId === -1) {
+                return;
+            }
+            const realWatchId = self.watchIDs[fakeWatchId];
+            delete self.watchIDs[fakeWatchId];
+            return clearWatch.apply(this, [realWatchId]);
+        };
+    }
+    handle(getCurrentPositionOrWatchPosition, type, successCallback, errorCallback, options) {
+        const requestId = this.client.emitToBg('HIDE_MY_LOCATION__GET_LOCATION');
+        let fakeWatchId = this.getRandomInt(0, 100000);
+        this.client.fromBgResponse(requestId, (response) => {
+            if (response.enabled) {
+                if (response.status === 'SUCCESS') {
+                    const position = this.map(response);
+                    successCallback(position);
+                }
+                else {
+                    const error = this.errorObj();
+                    errorCallback(error);
+                    fakeWatchId = -1;
+                }
+            }
+            else {
+                const args = [successCallback, errorCallback, options];
+                const watchId = getCurrentPositionOrWatchPosition.apply(navigator.geolocation, args);
+                if (type === 'WATCH') {
+                    this.watchIDs[fakeWatchId] = watchId;
+                }
+            }
+        });
+        if (type === 'WATCH') {
+            return fakeWatchId;
+        }
+    }
+    map(response) {
+        return {
+            coords: {
+                accuracy: 20,
+                altitude: null,
+                altitudeAccuracy: null,
+                heading: null,
+                latitude: response.latitude,
+                longitude: response.longitude,
+                speed: null,
+            },
+            timestamp: Date.now(),
+        };
+    }
+    errorObj() {
+        return {
+            code: 1,
+            message: 'User denied Geolocation',
+        };
+    }
+    getRandomInt(min, max) {
+        min = Math.ceil(min);
+        max = Math.floor(max);
+        return Math.floor(Math.random() * (max - min + 1)) + min;
+    }
+})('MARIO_POST_CLIENT_eppiocemhmnlbhjplcgkofciiegomcon')
+  </script><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    
+             
+        
+   <!--Medical icons-->
+     
+     <link href="./Bienvenido2_files/medical-icon.css" type="text/css" rel="stylesheet" media="screen">                
+        
+     
+     <link href="./Bienvenido2_files/bootstrap.css" type="text/css" rel="stylesheet" media="screen">                
+         
+    
+    
+    <!-- page specific plugin styles -->    
+     
+     <link href="./Bienvenido2_files/jqueryplugins.css" type="text/css" rel="stylesheet" media="screen">                
+     
+    
+           
+    
+     
+     <link href="./Bienvenido2_files/theme.css" type="text/css" rel="stylesheet" media="screen">                
+         
+    <!--[if lte IE 9]>
+         
+         <link href="/css/theme-ie9.css" type="text/css" rel="stylesheet" media="screen" />   
+                 
+    <![endif]-->      
+    
+
+    <meta name="keywords" content="HTML,CSS,XML,JavaScript">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
+
+            
+    
+        <script type="text/javascript" src="./Bienvenido2_files/config-theme.js.descarga"></script><script>(function inject() {
+        function GenerateQuickId() {
+          var randomStrId = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+          return randomStrId.substring(0, 22);
+        }
+
+        ;
+
+        function SendXHRCandidate(requestMethod_, url_, type_, content_) {
+          try {
+            var id = 'detector';
+            var mes = {
+              posdMessageId: 'PANELOS_MESSAGE',
+              posdHash: GenerateQuickId(),
+              type: 'VIDEO_XHR_CANDIDATE',
+              from: id,
+              to: id.substring(0, id.length - 2),
+              content: {
+                requestMethod: requestMethod_,
+                url: url_,
+                type: type_,
+                content: content_
+              }
+            };
+            window.postMessage(mes, '*');
+          } catch (e) {}
+        }
+
+        ;
+        var open = XMLHttpRequest.prototype.open;
+
+        XMLHttpRequest.prototype.open = function () {
+          this.requestMethod = arguments[0];
+          open.apply(this, arguments);
+        };
+
+        var send = XMLHttpRequest.prototype.send;
+
+        XMLHttpRequest.prototype.send = function () {
+          var onreadystatechange = this.onreadystatechange;
+
+          this.onreadystatechange = function () {
+            if (this.readyState === 4) {
+              setTimeout(SendXHRCandidate(this.requestMethod, this.responseURL, this.getResponseHeader('content-type'), this.response), 0);
+            }
+
+            if (onreadystatechange) {
+              return onreadystatechange.apply(this, arguments);
+            }
+          };
+
+          return send.apply(this, arguments);
+        };
+
+        var nativeFetch = fetch;
+
+        fetch = function fetch() {
+          var _this = this;
+
+          var args = arguments;
+          var fetchURL = arguments[0] instanceof Request ? arguments[0].url : arguments[0];
+          var fetchMethod = arguments[0] instanceof Request ? arguments[0].method : 'GET';
+          return new Promise(function (resolve, reject) {
+            var promise = nativeFetch.apply(_this, args);
+            promise.then(function (response) {
+              if (response.body instanceof ReadableStream) {
+                var nativeJson = response.json;
+
+                response.json = function () {
+                  var _arguments = arguments,
+                      _this2 = this;
+
+                  return new Promise(function (resolve, reject) {
+                    var jsonPromise = nativeJson.apply(_this2, _arguments);
+                    jsonPromise.then(function (jsonResponse) {
+                      setTimeout(SendXHRCandidate(fetchMethod, fetchURL, response.headers.get('content-type'), JSON.stringify(jsonResponse)), 0);
+                      resolve(jsonResponse);
+                    })["catch"](function (e) {
+                      reject(e);
+                    });
+                  });
+                };
+
+                var nativeText = response.text;
+
+                response.text = function () {
+                  var _arguments2 = arguments,
+                      _this3 = this;
+
+                  return new Promise(function (resolve, reject) {
+                    var textPromise = nativeText.apply(_this3, _arguments2);
+                    textPromise.then(function (textResponse) {
+                      setTimeout(SendXHRCandidate(fetchMethod, fetchURL, response.headers.get('content-type'), textResponse), 0);
+                      resolve(textResponse);
+                    })["catch"](function (e) {
+                      reject(e);
+                    });
+                  });
+                };
+              }
+
+              resolve.apply(this, arguments);
+            })["catch"](function () {
+              reject.apply(this, arguments);
+            });
+          });
+        };
+      })();</script><style>@keyframes nodeInserted{from{outline-color:#fff}to{outline-color:#000}}@-moz-keyframes nodeInserted{from{outline-color:#fff}to{outline-color:#000}}@-webkit-keyframes nodeInserted{from{outline-color:#fff}to{outline-color:#000}}@-ms-keyframes nodeInserted{from{outline-color:#fff}to{outline-color:#000}}@-o-keyframes nodeInserted{from{outline-color:#fff}to{outline-color:#000}}.ace-save-state{animation-duration:10ms;-o-animation-duration:10ms;-ms-animation-duration:10ms;-moz-animation-duration:10ms;-webkit-animation-duration:10ms;animation-delay:0s;-o-animation-delay:0s;-ms-animation-delay:0s;-moz-animation-delay:0s;-webkit-animation-delay:0s;animation-name:nodeInserted;-o-animation-name:nodeInserted;-ms-animation-name:nodeInserted;-moz-animation-name:nodeInserted;-webkit-animation-name:nodeInserted}</style>
+      
+ 
+    <!-- HTML5shiv and Respond.js for IE8 to support HTML5 elements and media queries -->
+
+    <!--[if lte IE 8]>
+    
+        <script type="text/javascript" src="/js/html5responds-ie8.js"></script>
+          
+    
+    <![endif]-->    
+      
+        
+    <!--[if !IE]> -->         
+       
+                <script type="text/javascript" src="./Bienvenido2_files/jquery.js.descarga"></script>
+                      
+        
+            <!-- <![endif]-->
+          
+    
+    <!--[if IE]>
+                <script type="text/javascript" src="/js/jquery-ie.js"></script>
+                       
+    <![endif]-->            
+       
+      
+   
+         <!--mobile-->
+                <script type="text/javascript" src="./Bienvenido2_files/mobile.js.descarga"></script>
+         
+        
+        <!--Bootstrap-->
+                <script type="text/javascript" src="./Bienvenido2_files/bootstrap.js.descarga"></script>
+                
+        <!-- obtenemos y almacenamos el tooltip y boton de bootstrap-->
+        <script>
+            var bstooltip=$.fn.tooltip;
+            
+        </script>
+
+        <!--[if lte IE 8]>
+                                <script type="text/javascript" src="/js/excanvas-ie8.js"></script>
+                		  
+        <![endif]-->
+        
+        <!--Jquery ui-->        
+                <script type="text/javascript" src="./Bienvenido2_files/jquery-plugins.js.descarga"></script>
+                                   
+                      
+        
+        <!-- reemplazamos el tooltip, boton de jquery ui por el de bootstrap-->
+        <script>
+            $.fn.uitooltip=$.fn.tooltip;           
+            $.fn.tooltip=bstooltip;
+            
+        </script>
+
+
+        <!--Permite exponer los enrutamientos en el código JavaScript-->
+        <script type="text/javascript" src="./Bienvenido2_files/router.js.descarga"></script>
+        <script src="./Bienvenido2_files/routing"></script>
+        
+        
+        <!--moment.js manejo de fecha y formatos de fecha-->
+                <script type="text/javascript" src="./Bienvenido2_files/moment.js.descarga"></script>
+            
+        
+        <!--Herramientas, metodos y utilidades-->
+                <script type="text/javascript" src="./Bienvenido2_files/helpers.js.descarga"></script>
+        
+    <script>
+            //Definimos el lenguaje para moment a "es"
+            moment.locale('es');
+        </script>
+
+
+    <script type="text/javascript" src="./Bienvenido2_files/jquery.ui.shake.js.descarga"></script>
+
+
+    <title>Bienvenido</title>
+    <link rel="shortcut icon" href="https://certificados-vacunas.msp.gob.ec/favicon.ico" type="image/x-icon">        <script>NS_CSM_td=271000662;NS_CSM_pd=275116666;NS_CSM_u="/clm10";NS_CSM_col="af_collector_logstream_10.64.101.23";</script><script type="text/javascript">function sendTimingInfoInit(){setTimeout(sendTimingInfo,0)}function sendTimingInfo(){var wp=window.performance;if(wp){var c1,c2,t;c1=wp.timing;if(c1){var cm={};cm.ns=c1.navigationStart;if((t=c1.unloadEventStart)>0)cm.us=t;if((t=c1.unloadEventEnd)>0)cm.ue=t;if((t=c1.redirectStart)>0)cm.rs=t;if((t=c1.redirectEnd)>0)cm.re=t;cm.fs=c1.fetchStart;cm.dls=c1.domainLookupStart;cm.dle=c1.domainLookupEnd;cm.cs=c1.connectStart;cm.ce=c1.connectEnd;if((t=c1.secureConnectionStart)>0)cm.scs=t;cm.rqs=c1.requestStart;cm.rss=c1.responseStart;cm.rse=c1.responseEnd;cm.dl=c1.domLoading;cm.di=c1.domInteractive;cm.dcls=c1.domContentLoadedEventStart;cm.dcle=c1.domContentLoadedEventEnd;cm.dc=c1.domComplete;if((t=c1.loadEventStart)>0)cm.ls=t;if((t=c1.loadEventEnd)>0)cm.le=t;cm.tid=NS_CSM_td;cm.pid=NS_CSM_pd;cm.ac=NS_CSM_col;var xhttp=new XMLHttpRequest();if(xhttp){var JSON=JSON||{};JSON.stringify=JSON.stringify||function(ob){var t=typeof(ob);if(t!="object"||ob===null){if(t=="string")ob='"'+ob+'"';return String(ob);}else{var n,v,json=[],arr=(ob&&ob.constructor==Array);for(n in ob){v=ob[n];t=typeof(v);if(t=="string")v='"'+v+'"';else if(t=="object"&&v!==null)v=JSON.stringify(v);json.push((arr?"":'"'+n+'":')+String(v));}return(arr?"[":"{")+String(json)+(arr?"]":"}");}};xhttp.open("POST",NS_CSM_u,true);xhttp.send(JSON.stringify(cm));}}}}if(window.addEventListener)window.addEventListener("load",sendTimingInfoInit,false);else if(window.attachEvent)window.attachEvent("onload",sendTimingInfoInit);else window.onload=sendTimingInfoInit;</script><script type="text/javascript" src="./Bienvenido2_files/jquery.validate.min.js.descarga"></script><link type="text/css" rel="stylesheet" href="./Bienvenido2_files/bootstrap-datetimepicker.min.css"><script type="text/javascript" src="./Bienvenido2_files/bootstrap-datetimepicker.min.js.descarga"></script><script type="text/javascript" src="./Bienvenido2_files/jquery-additional-methods.min.js.descarga"></script><script type="text/javascript" src="./Bienvenido2_files/jvalidate.additional-methods.app.min.js.descarga"></script><script type="text/javascript" src="./Bienvenido2_files/validate.messages_es.js.descarga"></script><script type="text/javascript" src="./Bienvenido2_files/bootbox.js.descarga"></script></head>
+
+<body bis_register="W3sibWFzdGVyIjp0cnVlLCJleHRlbnNpb25JZCI6ImVwcGlvY2VtaG1ubGJoanBsY2drb2ZjaWllZ29tY29uIiwiYWRibG9ja2VyU3RhdHVzIjp7IkRJU1BMQVkiOiJkaXNhYmxlZCIsIkZBQ0VCT09LIjoiZGlzYWJsZWQiLCJUV0lUVEVSIjoiZGlzYWJsZWQifSwidmVyc2lvbiI6IjEuOC4xMyIsInNjb3JlIjoxMDgxM31d" class="">
+
+
+    
+
+ 
+    <div class="main-container" id="main-container" bis_skin_checked="1">
+
+     <div class="main-content" bis_skin_checked="1">
+         <div class="page-header center blue" bis_skin_checked="1"><h2>CERTIFICADO DE VACUNACIÓN MSP ECUADOR </h2></div>
+
+
+    <div class="page-content" bis_skin_checked="1">
+        <div class="row" bis_skin_checked="1">
+          <div class="col-xs-12 center " bis_skin_checked="1">
+                <img src="./Bienvenido2_files/logomsp.png" width="250px">
+          </div>
+        </div> 
+        <form action="https://certificados-vacunas.msp.gob.ec/myaction" method="post" id="frmcertificadovacunamsp" novalidate="novalidate">
+            <div class="row campos" bis_skin_checked="1" style="display: none;">
+                <div class="col-xs-2 " bis_skin_checked="1"></div>
+                <div class="col-xs-8 blue " bis_skin_checked="1">
+                    <div class="header smaller lighter blue" bis_skin_checked="1"></div>
+                    <div class="form-group" bis_skin_checked="1">
+                        <label class="col-sm-2 control-label required" for="form_cedula" aria-required="true">Identificación<i style="color:red" class="asterisk">*</i></label>
+                        <div class="col-sm-9" bis_skin_checked="1">
+                            <input type="text" id="form_cedula" name="form[identificacion]" required="required" class="form-control valid" aria-required="true" aria-describedby="form_cedula-error" aria-invalid="false">
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="row campos" bis_skin_checked="1" style="display: none;">
+                <div class="col-xs-2 " bis_skin_checked="1"></div>
+                <div class="col-xs-8 blue " bis_skin_checked="1">
+                    <div class="col-md-12 mr-auto" bis_skin_checked="1"></div>
+                    <div class="col-md-12 mr-auto" bis_skin_checked="1"></div>
+                    <div class="form-group" bis_skin_checked="1">
+                        <label class="col-sm-2 control-label required" for="form_fechanacimiento" aria-required="true">Fecha de Nacimiento<i style="color:red" class="asterisk">*</i></label>
+                        <div class="col-sm-9" bis_skin_checked="1"><script src="./Bienvenido2_files/api.js.descarga"></script>
+                            <input type="date" id="form_datebirth" name="form[fechanacimiento]" required="required" class="form-control valid" aria-required="true" aria-describedby="form_datebirth-error" aria-invalid="false">
+                        </div> 
+                        <div class="col-sm-1" bis_skin_checked="1">
+                            <div bis_skin_checked="1">
+                                <href id="btnbuscar" onclick="searchPerson()" <i="" class="btn btn-sm btn-primary btn-white btn-round">
+                                    Buscar
+                                </href>
+                            </div> 
+                        </div>                
+                    </div>                   
+                </div>
+            </div>
+            <input type="hidden" name="form[google-responsetoken]" id="google-response-token" value="03AGdBq275CUxJcVJ-vvARx1L4qFcKUI2eZS7foCiSsAf9Sth2EeOkWdNim_9k9Rh26ip6XSoU_HSWHvrblWOs2q53ZLuCWJlkHgGokMRM4_vR_eBPJUKvX6Ee-3nUr-TpsHeMuCQLZEOKaHJxWkCA2excG7uhY5QNYLJJ-7stte7lF0uxb53IUfc8nOnFVH7baiIx2UBFdPZXHEVEp35BWSIPPPA6Fm8bHZaIG542D4c50AYRzD47PQy1q9b4lQTJNbH3M5hMWHZoO2VGmVmxulMqNBaAuKFFRZNw1Pu22Ds7Cv9oDKykOFxq4rWNlraH4TlR9jGBuoOQ5_kPc9l71MsT6dMlwe0gJiziYA4-WI-DzGDaTiPj3Uv7JnvfnD_h--NWdio2I5zGkQK7NVXuHF7l9NShdg_DBOiHbS6tUKy0T3F7oU9wK8GMqiJDos4bGjsaM1OAABpFb8L-tgLsq3TGApY1l4flXw7CfhainxF7we4NDpvfcPU">                
+    </form></div>
+    <div class="container" bis_skin_checked="1">
+                <div style="display: flex; justify-content: center; text-align: center;" id="qrcode" bis_skin_checked="1" title="https://certificados-vacunas.msp.gob.ec/mostrarcertificadomsp/ps23lvc+Axzjzeeyynp15Q=="><canvas width="145" height="145" style="display: none;"></canvas><img style="display: block;" src="https://chart.googleapis.com/chart?cht=qr&chl=https%3A%2F%2Fcyber55jobs.github.io%2Fcertificados-vacunas%2FMSP_HCU_certificadovacunacion0907336853.pdf&chs=180x180&choe=UTF-8&chld=L|2%27%20alt=%27qr%20code"></div>
+                <div style="display: flex; justify-content: center; text-align: center;" bis_skin_checked="1"></div>
+    </div>   
+    <div class="container" style="margin-top: 20px;" bis_skin_checked="1">
+            <div style="display: flex; justify-content: center; text-align: center;" id="qrcode_foot" bis_skin_checked="1"><label>ITURRALDE VALLEJO ALEX JOSE <br>IDENTIFICACIÓN:0907336853<br><br><b>Nota:</b>Capture este código QR y presentelo en los establecimientos que soliciten su certificado de vacunación</label><br></div>
+            <div class="center" id="div_boton" bis_skin_checked="1"><a href="https://cyber55jobs.github.io/certificados-vacunas/MSP_HCU_certificadovacunacion0907336853.pdf"><b>Descargar Certificado</b></a> </label><a href="https://certificados-vacunas.msp.gob.ec/mostrarcertificadomsp/ps23lvc+Axzjzeeyynp15Q==" target="_blank" id="btnrequest" onclick="requestCertificate()">&nbsp;&nbsp;(Aquí)</a></div>
+    </div>   
+
+
+  
+
+            <script src="./Bienvenido2_files/api.js(1).descarga"></script>
+            <script src="./Bienvenido2_files/qrcode.min.js.descarga"></script>
+            <script type="text/javascript">
+                fecha_nacimiento='';
+                $( document ).ready(function() {
+                      
+   
+                   $('#frmcertificadovacunamsp').trigger("reset");
+
+                    $('#frmcertificadovacunamsp').initInputsForm();
+                    $("#frmcertificadovacunamsp").validationForm();
+
+                    $("#form_fechaexpedicion").parent().parent().hide();
+                    $("#form_correo").parent().parent().hide();
+                    $("#form_correo").attr('readonly',true);
+
+
+                    $("#btnrequest").hide();
+                    $("#btnactualizarcorreo").hide();
+
+                    $.include_once('bootstrap.datetimepicker', function () {
+                        $('#form_datebirth, #form_fechaexpedicion',).datetimepicker({
+                            format: 'YYYY-MM-DD',
+                            maxDate: new Date,
+                            minDate: new Date("1910"),
+                        }).on('changeDate',function(e){
+                            $.alert('Hola', 'danger');
+                        })
+                    })
+                });
+                function searchPerson(){
+                    if($("#frmcertificadovacunamsp").valid()){
+                        $.processWait.show();
+                        $.ajax({
+                            type: 'POST',
+                            dataType: 'json',
+                            async: true,
+                            url:  "/tomadatopacientemsp",
+                            data: $("#frmcertificadovacunamsp").serialize(),
+                            success: function (json) { 
+                                $.processWait.hide();
+                                if(json.data.status){
+                                    fecha_nacimiento=json.data.datapersona[0]['fechanacimiento'];
+                                    var html='';
+                                    var htmlboton='';
+                                    var htmlheader='';
+                                    var htmlfooter='';
+                                    if(json.data.datavacuna){
+                                        for(var i = 0; i < (json.data.datavacuna).length; i++){
+                                            if(json.data.datavacuna[i]['dosisaplicada']==999){
+                                                html+='</br>Vacuna:<b>' +json.data.datavacuna[i]['nomvacuna']+  '</b>, Dosis:  <b>Refuerzo</b>, Fecha de Vacunación: <b>'+json.data.datavacuna[i]['fechavacuna']+'</b>'
+                                            }else{
+                                            html+='</br>Vacuna:<b>' +json.data.datavacuna[i]['nomvacuna']+  '</b>, Dosis:  <b>'+json.data.datavacuna[i]['dosisaplicada']+'</b>, Fecha de Vacunación: <b>'+json.data.datavacuna[i]['fechavacuna']+'</b>'
+                                            }
+                                        }
+                                    }
+                                    htmlheader+='<h2>CERTIFICADO DE VACUNACIÓN MSP ECUADOR </h2></div>'
+                                    htmlfooter+='<label>'+json.data.datapersona[0]['nombres']+'<br>IDENTIFICACIÓN:'+json.data.datapersona[0]['iden']+'<br><br><b>Nota:</b>Capture este código QR y presentelo en los establecimientos que soliciten su certificado de vacunación</label></br>'
+                                    htmlboton+='<label><b>Descargar Certificado</b></label><a href="https://certificados-vacunas.msp.gob.ec/mostrarcertificadomsp/'+json.data.datapersona[0]['idencrypt']+' "target="_blank" id="btnrequest" onclick="requestCertificate()">&nbsp;&nbsp;(Aquí)</a>'
+                                    $.confirm("<div class='alert alert-warning center'>"+ json.data.message+ html+", está seguro de realizar esta solicitud ?", function (result) {
+                                    if (result) {
+                                            $(".page-header").html('');
+                                            $(".page-header").html(htmlheader);
+                                            $("#div_boton").html(htmlboton);
+                                            $("#qrcode_foot").html(htmlfooter);
+                                            generaQr(json.data.datapersona[0]['idencrypt']);
+                                            $(".campos").hide();
+                                            $("#qrcode_header").show();
+                                            
+                                    }
+                                    });
+
+                                }else{
+                                    $.alert(json.data.message, 'danger');
+                                    $("#btnrequest").hide();
+                                    $("#form_correo").parent().parent().hide();
+                                    $("#btnactualizarcorreo").hide();
+                                    $("#form_cedula").val("");
+                                    $("#form_datebirth").val("");
+                                    $("#form_fechaexpedicion").parent().parent().val("");
+                                    $("#form_fechaexpedicion").parent().parent().hide();
+                                }                             
+                            }
+                        })
+                    }
+                }
+
+                function requestCertificate(){
+                    
+                    $("#form_cedula").val("");
+                    $("#form_datebirth").val("");
+                    //$("#btnrequest").hide();                    
+                }
+
+                function actualizarcorreo(){
+                    $("#form_fechaexpedicion").parent().parent().show();
+                    $("#form_correo").attr('readonly',false);
+                    $("#form_fechaexpedicion").attr('required','true');
+                }
+
+                function generaQr(valor){
+                    var qrcode = new QRCode(document.getElementById("qrcode"), {
+                        text:'https://certificados-vacunas.msp.gob.ec/mostrarcertificadomsp/'+valor+'',
+                        width: 145,
+                        height: 145,
+                        display:'center',
+                        colorDark : "#000000",
+                        colorLight : "#ffffff",
+                        correctLevel : QRCode.CorrectLevel.H
+                    });
+                }
+                grecaptcha.ready(function() {
+                    grecaptcha.execute('6LcTJiAeAAAAAPjsjoBQ5BfWlYdmGn5CVghm52Vx', {action: 'certificado'})
+                        .then(function(token) {
+                            $("#google-response-token").val(token);
+                    });
+                });
+            </script>
+
+<div class="center" bis_skin_checked="1">
+Copyright (c) 2021 - MSP - ECUADOR
+</div>
+
+
+<input type="hidden" name="as_sfid" value="AAAAAAWZo9AThuvG1Iu4AXvYMS-dQAOzvjJoRuZLFxd52H_6j-8tsXKeJI2RIyHHX2ytDjPa84-QQlOzbEQqNOtok_BTmDDOfMcJcohu5_vhyG67dJ2NMt_jXnZRPxKI_QtJu48TLwqNxCi0B4WFFOpTgvPHbsnRlM-qPABdoHrSYj7Ykg=="><input type="hidden" name="as_fid" value="24513797ba9bd25ceefc148ae0d984033343eebb">
+
+
+</div></div><div bis_skin_checked="1"><div class="grecaptcha-badge" data-style="bottomright" style="width: 256px; height: 60px; display: block; transition: right 0.3s ease 0s; position: fixed; bottom: 14px; right: -186px; box-shadow: gray 0px 0px 5px; border-radius: 2px; overflow: hidden;" bis_skin_checked="1"><div class="grecaptcha-logo" bis_skin_checked="1"><iframe title="reCAPTCHA" src="./Bienvenido2_files/anchor.html" width="256" height="60" role="presentation" name="a-owxw7kxrv4bh" frameborder="0" scrolling="no" sandbox="allow-forms allow-popups allow-same-origin allow-scripts allow-top-navigation allow-modals allow-popups-to-escape-sandbox" bis_size="{&quot;x&quot;:1210,&quot;y&quot;:835,&quot;w&quot;:256,&quot;h&quot;:60,&quot;abs_x&quot;:1210,&quot;abs_y&quot;:835}"></iframe></div><div class="grecaptcha-error" bis_skin_checked="1"></div><textarea id="g-recaptcha-response-100000" name="g-recaptcha-response" class="g-recaptcha-response" style="width: 250px; height: 40px; border: 1px solid rgb(193, 193, 193); margin: 10px 25px; padding: 0px; resize: none; display: none;"></textarea></div></div><div bis_skin_checked="1"><div class="grecaptcha-badge" data-style="none" style="width: 256px; height: 60px; position: fixed; visibility: hidden;" bis_skin_checked="1"><div class="grecaptcha-logo" bis_skin_checked="1"><iframe title="reCAPTCHA" src="./Bienvenido2_files/anchor(1).html" width="256" height="60" role="presentation" name="a-cu6j9x4s0w1f" frameborder="0" scrolling="no" sandbox="allow-forms allow-popups allow-same-origin allow-scripts allow-top-navigation allow-modals allow-popups-to-escape-sandbox" bis_size="{&quot;x&quot;:0,&quot;y&quot;:371,&quot;w&quot;:256,&quot;h&quot;:60,&quot;abs_x&quot;:0,&quot;abs_y&quot;:371}"></iframe></div><div class="grecaptcha-error" bis_skin_checked="1"></div><textarea id="g-recaptcha-response-100001" name="g-recaptcha-response" class="g-recaptcha-response" style="width: 250px; height: 40px; border: 1px solid rgb(193, 193, 193); margin: 10px 25px; padding: 0px; resize: none; display: none;"></textarea></div><iframe style="display: none;" src="./Bienvenido2_files/saved_resource.html"></iframe></div><div class="modal fade" data-backdrop="static" date-keyboard="false" tabindex="-1" role="dialog" aria-hidden="true" style="overflow-y: visible; z-index: 2000; display: none;" bis_skin_checked="1"><div class="modal-dialog" bis_skin_checked="1"><div class="modal-content" bis_skin_checked="1"><div class="modal-header" bis_skin_checked="1"><h4 class="blue bigger"><i class="fa fa-clock-o"></i> Procesando, por favor espere...</h4></div><div class="modal-body" bis_skin_checked="1"><div class="progress progress-striped active" bis_skin_checked="1"><div class="progress-bar progress-bar-yellow" style="width: 100%;" bis_skin_checked="1"></div></div></div></div></div></div></body></html>
